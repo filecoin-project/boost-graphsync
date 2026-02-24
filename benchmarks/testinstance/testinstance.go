@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
+	"github.com/ipfs/boxo/blockstore"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/delayed"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	badgerds "github.com/ipfs/go-ds-badger"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	delay "github.com/ipfs/go-ipfs-delay"
 	"github.com/ipld/go-ipld-prime"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
 	p2ptestutil "github.com/libp2p/go-libp2p-testing/netutil"
-	peer "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	graphsync "github.com/filecoin-project/boost-graphsync"
 	tn "github.com/filecoin-project/boost-graphsync/benchmarks/testnet"
@@ -73,7 +73,7 @@ func (g *InstanceGenerator) Next() (Instance, error) {
 // them to each other
 func (g *InstanceGenerator) Instances(n int) ([]Instance, error) {
 	var instances []Instance
-	for j := 0; j < n; j++ {
+	for range n {
 		inst, err := g.Next()
 		if err != nil {
 			return nil, err

@@ -336,7 +336,7 @@ func newTestData(t *testing.T, blockCount int, expectedTraverse int) (*testData,
 		links: links,
 		advanceCb: func(curLink int, actualData []byte) error {
 			require.Less(t, loads-2, len(td.expectedBlocks), "should not have loaded more than the blocks we have")
-			require.NotSame(t, td.expectedBlocks[curLink].data, actualData) // a copy has to happen
+			require.NotSame(t, &td.expectedBlocks[curLink].data, &actualData) // a copy has to happen
 			require.Equal(t, td.expectedBlocks[curLink].data, actualData)
 			return nil
 		},

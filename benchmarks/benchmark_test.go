@@ -3,6 +3,7 @@ package graphsync_test
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"os"
@@ -13,17 +14,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-blockservice"
+	"github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
+	chunker "github.com/ipfs/boxo/chunker"
+	"github.com/ipfs/boxo/exchange/offline"
+	"github.com/ipfs/boxo/files"
+	"github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/ipld/unixfs/importer/balanced"
+	ihelper "github.com/ipfs/boxo/ipld/unixfs/importer/helpers"
 	"github.com/ipfs/go-cid"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	chunker "github.com/ipfs/go-ipfs-chunker"
 	delay "github.com/ipfs/go-ipfs-delay"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
-	files "github.com/ipfs/go-ipfs-files"
 	ipldformat "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
-	"github.com/ipfs/go-unixfs/importer/balanced"
-	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-ipld-prime/node/basicnode"
 	ipldselector "github.com/ipld/go-ipld-prime/traversal/selector"
@@ -100,7 +101,7 @@ func benchmarkRepeatedDisconnects(ctx context.Context, b *testing.B, numnodes in
 		require.NoError(b, err)
 		start := time.Now()
 		errgrp, grpctx := errgroup.WithContext(ctx)
-		for j := 0; j < numnodes; j++ {
+		for j := range numnodes {
 			instance := instances[j+1]
 			_, errChan := fetcher.Exchange.Request(grpctx, instance.Peer, cidlink.Link{Cid: allCids[i][j]}, allSelector)
 			other := instance.Peer
@@ -151,7 +152,7 @@ func p2pStrestTest(ctx context.Context, b *testing.B, numfiles int, df distFunc,
 	instances, err := ig.Instances(1 + b.N)
 	require.NoError(b, err)
 	var allCids []cid.Cid
-	for i := 0; i < numfiles; i++ {
+	for range numfiles {
 		thisCids := df(ctx, b, instances[:1])
 		allCids = append(allCids, thisCids...)
 	}
@@ -169,7 +170,7 @@ func p2pStrestTest(ctx context.Context, b *testing.B, numfiles int, df distFunc,
 		require.NoError(b, err)
 		start := time.Now()
 		errgrp, grpctx := errgroup.WithContext(ctx)
-		for j := 0; j < numfiles; j++ {
+		for j := range numfiles {
 			responseChan, errChan := fetcher.Exchange.Request(grpctx, instances[0].Peer, cidlink.Link{Cid: allCids[j]}, allSelector)
 			errgrp.Go(func() error {
 				for range responseChan {
@@ -222,7 +223,7 @@ func subtestDistributeAndFetch(ctx context.Context, b *testing.B, numnodes int, 
 		require.NoError(b, err)
 		start := time.Now()
 		errgrp, grpctx := errgroup.WithContext(ctx)
-		for j := 0; j < numnodes; j++ {
+		for j := range numnodes {
 			instance := instances[j]
 			_, errChan := fetcher.Exchange.Request(grpctx, instance.Peer, cidlink.Link{Cid: destCids[j]}, allSelector)
 
@@ -264,7 +265,7 @@ const defaultUnixfsLinksPerLevel = 1024
 func loadRandomUnixFxFile(ctx context.Context, b *testing.B, bs blockstore.Blockstore, size uint64, unixfsChunkSize uint64, unixfsLinksPerLevel int, useRawNodes bool) cid.Cid {
 
 	data := make([]byte, size)
-	_, err := rand.Read(data)
+	_, err := crand.Read(data)
 	require.NoError(b, err)
 	buf := bytes.NewReader(data)
 	file := files.NewReaderFile(buf)
