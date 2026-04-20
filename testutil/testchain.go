@@ -130,10 +130,10 @@ func (tbc *TestBlockChain) Selector() ipld.Node {
 
 // LinkTipIndex returns a link to the block at the given index from the tip
 func (tbc *TestBlockChain) LinkTipIndex(fromTip int) ipld.Link {
-	switch height := tbc.blockChainLength - 1 - fromTip; {
-	case height == 0:
+	switch height := tbc.blockChainLength - 1 - fromTip; height {
+	case 0:
 		return tbc.GenisisLink
-	case height == tbc.blockChainLength-1:
+	case tbc.blockChainLength - 1:
 		return tbc.TipLink
 	default:
 		return tbc.MiddleLinks[height-1]
@@ -142,10 +142,10 @@ func (tbc *TestBlockChain) LinkTipIndex(fromTip int) ipld.Link {
 
 // NodeTipIndex returns the node to the block at the given index from the tip
 func (tbc *TestBlockChain) NodeTipIndex(fromTip int) ipld.Node {
-	switch height := tbc.blockChainLength - 1 - fromTip; {
-	case height == 0:
+	switch height := tbc.blockChainLength - 1 - fromTip; height {
+	case 0:
 		return tbc.GenisisNode
-	case height == tbc.blockChainLength-1:
+	case tbc.blockChainLength - 1:
 		return tbc.TipNode
 	default:
 		return tbc.MiddleNodes[height-1]

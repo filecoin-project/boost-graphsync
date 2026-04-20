@@ -21,11 +21,11 @@ func StreamNet(ctx context.Context, net mockpeernet.Mocknet) Network {
 }
 
 func (pn *peernet) Adapter(p tnet.Identity) gsnet.GraphSyncNetwork {
-	client, err := pn.Mocknet.AddPeer(p.PrivateKey(), p.Address())
+	client, err := pn.AddPeer(p.PrivateKey(), p.Address())
 	if err != nil {
 		panic(err.Error())
 	}
-	err = pn.Mocknet.LinkAll()
+	err = pn.LinkAll()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -33,7 +33,7 @@ func (pn *peernet) Adapter(p tnet.Identity) gsnet.GraphSyncNetwork {
 }
 
 func (pn *peernet) HasPeer(p peer.ID) bool {
-	return slices.Contains(pn.Mocknet.Peers(), p)
+	return slices.Contains(pn.Peers(), p)
 }
 
 var _ Network = (*peernet)(nil)

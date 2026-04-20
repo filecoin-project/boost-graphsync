@@ -1,8 +1,15 @@
 # File managed by web3-bot. DO NOT EDIT.
 # See https://github.com/protocol/.github/ for details.
 
-on: [push, pull_request]
-name: Go Test
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   unit:
@@ -10,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu", "windows", "macos" ]
-        go: [ "1.24.x", "1.25.x" ]
+        go: [ "1.25.x", "1.26.x" ]
     env:
       COVERAGES: ""
     runs-on: ${{ format('{0}-latest', matrix.os) }}
@@ -34,6 +41,12 @@ jobs:
         # If we prepend its location to the PATH
         #   subsequent 'shell: bash' steps will use msys2 instead of gitbash
         run: echo "C:/msys64/usr/bin" >> $GITHUB_PATH
+      - name: Ensure MSYS2 home exists
+        if: ${{ matrix.os == 'windows' }}
+        shell: pwsh
+        # codecov-action uses git after MSYS2 is added to PATH, and MSYS2 git
+        # fails to write the global config if this directory has not been made.
+        run: New-Item -ItemType Directory -Force -Path "C:/msys64/home/$env:USERNAME" | Out-Null
       - name: Run repo-specific setup
         uses: ./.github/actions/go-test-setup
         if: hashFiles('./.github/actions/go-test-setup') != ''
@@ -62,7 +75,7 @@ jobs:
         shell: bash
         run: echo "COVERAGES=$(find . -type f -name 'module-coverage.txt' | tr -s '\n' ',' | sed 's/,$//')" >> $GITHUB_ENV
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378 # v3.1.0
+        uses: codecov/codecov-action@v5
         with:
           files: '${{ env.COVERAGES }}'
           env_vars: OS=${{ matrix.os }}, GO=${{ matrix.go }}

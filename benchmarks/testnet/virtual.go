@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	mockrouting "github.com/ipfs/boxo/routing/mock"
 	delay "github.com/ipfs/go-ipfs-delay"
-	mockrouting "github.com/ipfs/go-ipfs-routing/mock"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
 	"github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -232,7 +232,7 @@ func (nc *networkClient) ConnectTo(_ context.Context, p peer.ID) error {
 	nc.network.mu.Unlock()
 
 	otherClient.receiver.Connected(nc.local)
-	nc.Receiver.Connected(p)
+	nc.Connected(p)
 	return nil
 }
 
@@ -253,7 +253,7 @@ func (nc *networkClient) DisconnectFrom(_ context.Context, p peer.ID) error {
 	delete(nc.network.conns, tag)
 
 	otherClient.receiver.Disconnected(nc.local)
-	nc.Receiver.Disconnected(p)
+	nc.Disconnected(p)
 	return nil
 }
 

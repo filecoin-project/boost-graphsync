@@ -654,7 +654,8 @@ func TestOutgoingRequestHooks(t *testing.T) {
 	peers := testutil.GeneratePeers(1)
 
 	alternateStore := testutil.NewTestStore(make(map[datamodel.Link][]byte))
-	td.persistenceOptions.Register("chainstore", alternateStore)
+	err := td.persistenceOptions.Register("chainstore", alternateStore)
+	require.NoError(t, err)
 	hook := func(p peer.ID, r graphsync.RequestData, ha graphsync.OutgoingRequestHookActions) {
 		_, has := r.Extension(td.extensionName1)
 		if has {

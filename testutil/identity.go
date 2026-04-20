@@ -104,7 +104,8 @@ func SetupIdentityDAG(
 		bazIdent = cidlink.Link{Cid: cid.NewCidV1(cid.DagJSON, mh)}
 		w, wc, err := lsys.StorageWriteOpener(linking.LinkContext{})
 		require.NoError(t, err)
-		w.Write(identBytes)
+		_, err = w.Write(identBytes)
+		require.NoError(t, err)
 		require.NoError(t, wc(bazIdent))
 		allLinks = append(allLinks, bazIdent)
 	}

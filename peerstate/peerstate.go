@@ -25,7 +25,7 @@ func (ps PeerState) Diagnostics() map[graphsync.RequestID][]string {
 	matchedActiveQueue := make(map[graphsync.RequestID]struct{}, len(ps.RequestStates))
 	matchedPendingQueue := make(map[graphsync.RequestID]struct{}, len(ps.RequestStates))
 	diagnostics := make(map[graphsync.RequestID][]string)
-	for _, id := range ps.TaskQueueState.Active {
+	for _, id := range ps.Active {
 		status, ok := ps.RequestStates[id]
 		if ok {
 			matchedActiveQueue[id] = struct{}{}
@@ -36,7 +36,7 @@ func (ps PeerState) Diagnostics() map[graphsync.RequestID][]string {
 			diagnostics[id] = append(diagnostics[id], fmt.Sprintf("request with id %s in active task queue but appears to have no tracked state", id.String()))
 		}
 	}
-	for _, id := range ps.TaskQueueState.Pending {
+	for _, id := range ps.Pending {
 		status, ok := ps.RequestStates[id]
 		if ok {
 			matchedPendingQueue[id] = struct{}{}

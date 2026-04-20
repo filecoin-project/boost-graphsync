@@ -7,13 +7,13 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ipfs/boxo/util"
 	blocks "github.com/ipfs/go-block-format"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	blocksutil "github.com/ipfs/go-ipfs-blocksutil"
-	util "github.com/ipfs/go-ipfs-util"
 	"github.com/ipld/go-ipld-prime"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
-	random "github.com/jbenet/go-random"
+	"github.com/jbenet/go-random"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
