@@ -14,7 +14,7 @@ require (
 	github.com/ipfs/go-ds-badger2 v0.1.5
 	github.com/ipfs/go-ipld-format v0.6.3
 	github.com/ipld/go-car/v2 v2.16.0
-	github.com/ipld/go-ipld-prime v0.22.0
+	github.com/ipld/go-ipld-prime v0.23.0
 	github.com/ipld/go-ipld-prime/storage/bsadapter v0.0.0-20260402105321-5c66635c83a0
 	github.com/libp2p/go-libp2p v0.48.0
 	github.com/libp2p/go-libp2p-gostream v0.6.0
