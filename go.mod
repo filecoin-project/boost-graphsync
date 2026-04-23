@@ -21,7 +21,7 @@ require (
 	github.com/ipfs/go-peertaskqueue v0.8.3
 	github.com/ipfs/go-unixfsnode v1.10.3
 	github.com/ipld/go-codec-dagpb v1.7.0
-	github.com/ipld/go-ipld-prime v0.22.0
+	github.com/ipld/go-ipld-prime v0.23.0
 	github.com/jbenet/go-random v0.0.0-20190219211222-123a90aedc0c
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-libp2p v0.48.0
