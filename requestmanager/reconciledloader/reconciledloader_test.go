@@ -608,7 +608,8 @@ func TestReconciledLoader(t *testing.T) {
 				}
 				lnk, linkCtx := traverser.CurrentRequest()
 				loadSeq = append(loadSeq, loadRequest{linkCtx: linkCtx, link: lnk})
-				traverser.Advance(bytes.NewReader(data.baseStore[lnk]))
+				err = traverser.Advance(bytes.NewReader(data.baseStore[lnk]))
+				require.NoError(t, err)
 			}
 			ts := &testState{
 				ctx:          ctx,

@@ -4,11 +4,11 @@ import (
 	"io"
 	"testing"
 
+	bstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-datastore"
 	dss "github.com/ipfs/go-datastore/sync"
-	bstore "github.com/ipfs/go-ipfs-blockstore"
-	ipld "github.com/ipld/go-ipld-prime"
+	"github.com/ipld/go-ipld-prime"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/stretchr/testify/require"
 

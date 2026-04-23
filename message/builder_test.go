@@ -20,14 +20,16 @@ func TestMessageBuilding(t *testing.T) {
 		links = append(links, cidlink.Link{Cid: block.Cid()})
 	}
 	bb := basicnode.Prototype.Bytes.NewBuilder()
-	bb.AssignBytes(testutil.RandomBytes(100))
+	err := bb.AssignBytes(testutil.RandomBytes(100))
+	require.NoError(t, err, "could not assign bytes to builder")
 	extensionName1 := graphsync.ExtensionName("AppleSauce/McGee")
 	extension1 := graphsync.ExtensionData{
 		Name: extensionName1,
 		Data: bb.Build(),
 	}
 	bb = basicnode.Prototype.Bytes.NewBuilder()
-	bb.AssignBytes(testutil.RandomBytes(100))
+	err = bb.AssignBytes(testutil.RandomBytes(100))
+	require.NoError(t, err, "could not assign bytes to builder")
 	extensionName2 := graphsync.ExtensionName("HappyLand/Happenstance")
 	extension2 := graphsync.ExtensionData{
 		Name: extensionName2,

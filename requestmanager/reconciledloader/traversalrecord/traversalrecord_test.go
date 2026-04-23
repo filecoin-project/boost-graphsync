@@ -199,7 +199,8 @@ func buildTraversalRecord(t *testing.T, storage map[datamodel.Link][]byte, root 
 		data, successful := storage[lnk]
 		traversalRecord.RecordNextStep(linkCtx.LinkPath.Segments(), lnk.(cidlink.Link).Cid, successful)
 		if successful {
-			traverser.Advance(bytes.NewReader(data))
+			err = traverser.Advance(bytes.NewReader(data))
+			require.NoError(t, err)
 		} else {
 			traverser.Error(traversal.SkipMe{})
 		}

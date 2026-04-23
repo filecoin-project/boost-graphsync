@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/blockservice"
+	bstore "github.com/ipfs/boxo/blockstore"
+	chunker "github.com/ipfs/boxo/chunker"
 	"github.com/ipfs/boxo/exchange/offline"
 	"github.com/ipfs/boxo/ipld/merkledag"
 	unixfile "github.com/ipfs/boxo/ipld/unixfs/file"
@@ -22,10 +24,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	dss "github.com/ipfs/go-datastore/sync"
-	bstore "github.com/ipfs/go-ipfs-blockstore"
-	chunker "github.com/ipfs/go-ipfs-chunker"
-	files "github.com/ipfs/go-ipfs-files"
 	ipldformat "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-libipfs/files"
 	"github.com/ipfs/go-unixfsnode"
 	unixfsbuilder "github.com/ipfs/go-unixfsnode/data/builder"
 	dagpb "github.com/ipld/go-codec-dagpb"
@@ -1781,7 +1781,8 @@ func TestSendUpdates(t *testing.T) {
 	})
 
 	// send updates
-	requestor.SendUpdate(ctx, requestID, responderExt1, responderExt2)
+	err := requestor.SendUpdate(ctx, requestID, responderExt1, responderExt2)
+	require.NoError(t, err)
 
 	// check we received what we expected
 	testutil.AssertDoesReceive(ctx, t, updateRequests, "request never completed")
@@ -1815,7 +1816,8 @@ func TestSendUpdates(t *testing.T) {
 	})
 
 	// send updates the other way
-	responder.SendUpdate(ctx, requestID, requestorExt1, requestorExt2)
+	err = responder.SendUpdate(ctx, requestID, requestorExt1, requestorExt2)
+	require.NoError(t, err)
 
 	// check we received what we expected
 	testutil.AssertDoesReceive(ctx, t, updateResponses, "request never completed")
@@ -1824,7 +1826,7 @@ func TestSendUpdates(t *testing.T) {
 	unreg()
 
 	// finish up
-	err := responder.Unpause(ctx, requestID)
+	err = responder.Unpause(ctx, requestID)
 	require.NoError(t, err)
 
 	blockChain.VerifyRemainder(ctx, progressChan, stopPoint)

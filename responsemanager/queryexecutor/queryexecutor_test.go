@@ -3,6 +3,7 @@ package queryexecutor
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"io"
 	"math/rand"
@@ -220,7 +221,7 @@ func TestSmallGraphTask(t *testing.T) {
 
 func newRandomBlock(index int64) *blockData {
 	digest := make([]byte, 32)
-	_, err := rand.Read(digest)
+	_, err := crand.Read(digest)
 	if err != nil {
 		panic(err)
 	}
@@ -228,7 +229,7 @@ func newRandomBlock(index int64) *blockData {
 	c := cid.NewCidV1(cid.DagCBOR, mh)
 	link := &cidlink.Link{Cid: c}
 	data := make([]byte, rand.Intn(64)+1)
-	_, err = rand.Read(data)
+	_, err = crand.Read(data)
 	if err != nil {
 		panic(err)
 	}
@@ -333,6 +334,7 @@ func newTestData(t *testing.T, blockCount int, expectedTraverse int) (*testData,
 		return bytes.NewReader(td.expectedBlocks[loads-2].data), nil
 	}
 	expectedTraverser := &fauxTraverser{
+		t:     t,
 		links: links,
 		advanceCb: func(curLink int, actualData []byte) error {
 			require.Less(t, loads-2, len(td.expectedBlocks), "should not have loaded more than the blocks we have")
@@ -496,7 +498,8 @@ func (t *fauxTraverser) Advance(reader io.Reader) error {
 	t.curLink++
 	if t.advanceCb != nil {
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(reader)
+		_, err := buf.ReadFrom(reader)
+		require.NoError(t.t, err)
 		return t.advanceCb(t.curLink-1, buf.Bytes())
 	}
 	return nil

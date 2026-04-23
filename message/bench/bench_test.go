@@ -26,7 +26,8 @@ func BenchmarkMessageEncodingRoundtrip(b *testing.B) {
 	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
 	selector := ssb.Matcher().Node()
 	bb := basicnode.Prototype.Bytes.NewBuilder()
-	bb.AssignBytes(testutil.RandomBytes(100))
+	err := bb.AssignBytes(testutil.RandomBytes(100))
+	require.NoError(b, err)
 	extensionName := graphsync.ExtensionName("graphsync/awesome")
 	extension := graphsync.ExtensionData{
 		Name: extensionName,

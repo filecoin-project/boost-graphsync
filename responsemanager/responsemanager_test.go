@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-peertaskqueue/peertask"
 	"github.com/ipfs/go-peertaskqueue/peertracker"
-	ipld "github.com/ipld/go-ipld-prime"
+	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-ipld-prime/node/basicnode"
@@ -895,7 +895,8 @@ func TestUpdateResponse(t *testing.T) {
 		ext1 := graphsync.ExtensionData{Name: graphsync.ExtensionName("grip grop"), Data: basicnode.NewString("flim flam, blim blam")}
 		ext2 := graphsync.ExtensionData{Name: graphsync.ExtensionName("Humpty/Dumpty"), Data: basicnode.NewInt(101)}
 
-		responseManager.UpdateResponse(td.ctx, td.requestID, ext1, ext2)
+		err := responseManager.UpdateResponse(td.ctx, td.requestID, ext1, ext2)
+		require.NoError(t, err)
 
 		var receivedExtension sentExtension
 		testutil.AssertReceive(td.ctx, td.t, td.sentExtensions, &receivedExtension, "should send first extension response")
@@ -930,7 +931,8 @@ func TestUpdateResponse(t *testing.T) {
 		ext1 := graphsync.ExtensionData{Name: graphsync.ExtensionName("grip grop"), Data: basicnode.NewString("flim flam, blim blam")}
 		ext2 := graphsync.ExtensionData{Name: graphsync.ExtensionName("Humpty/Dumpty"), Data: basicnode.NewInt(101)}
 
-		responseManager.UpdateResponse(td.ctx, td.requestID, ext1, ext2)
+		err := responseManager.UpdateResponse(td.ctx, td.requestID, ext1, ext2)
+		require.NoError(t, err)
 		responseManager.synchronize()
 
 		var receivedExtension sentExtension
