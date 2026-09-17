@@ -216,6 +216,12 @@ func (gsm GraphSyncMessage) Empty() bool {
 	return len(gsm.blocks) == 0 && len(gsm.requests) == 0 && len(gsm.responses) == 0
 }
 
+// RequestCount returns the number of requests in this message, without
+// allocating a slice the way Requests() does.
+func (gsm GraphSyncMessage) RequestCount() int {
+	return len(gsm.requests)
+}
+
 // Requests provides a copy of the requests in this message
 func (gsm GraphSyncMessage) Requests() []GraphSyncRequest {
 	requests := make([]GraphSyncRequest, 0, len(gsm.requests))
