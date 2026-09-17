@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -84,9 +85,13 @@ func NewFromLibp2pHost(host host.Host, options ...Option) GraphSyncNetwork {
 
 	graphSyncNetwork.panicHandler = panics.MakeHandler(graphSyncNetwork.panicCallback)
 
+	// The handlers charge the limiter as soon as a message's request count is
+	// known and before they retain anything for it. For v1 that matters beyond
+	// the responder: it mints a request ID mapping per unseen integer ID, so
+	// charging after the decode would let a refused message leave state behind.
 	graphSyncNetwork.messageHandlerSelector = &messageHandlerSelector{
-		v1MessageHandler: gsmsgv1.NewMessageHandler(),
-		v2MessageHandler: gsmsgv2.NewMessageHandler(),
+		v1MessageHandler: gsmsgv1.NewMessageHandlerWithAdmission(graphSyncNetwork.admitMessage),
+		v2MessageHandler: gsmsgv2.NewMessageHandlerWithAdmission(graphSyncNetwork.admitMessage),
 		panicHandler:     graphSyncNetwork.panicHandler,
 	}
 
@@ -144,6 +149,21 @@ type libp2pGraphSyncNetwork struct {
 	// requestLimiter bounds the request content each peer may send. Built after
 	// options are applied, and never nil once the network is constructed.
 	requestLimiter *requestRateLimiter
+}
+
+// admitMessage is the message handlers' admission hook. It charges the peer for
+// the requests a message carries, with a floor of one so that a message of only
+// responses and blocks is not free. The policy lives here, next to the limiter
+// it draws on, rather than being spread across the protocol handlers.
+func (gsnet *libp2pGraphSyncNetwork) admitMessage(p peer.ID, requestCount int) bool {
+	if gsnet.maxRequestsPerPeerSecond <= 0 {
+		return true
+	}
+	cost := requestCount
+	if cost < 1 {
+		cost = 1
+	}
+	return gsnet.requestLimiter.allow(p, cost)
 }
 
 type streamMessageSender struct {
@@ -267,6 +287,18 @@ func (gsnet *libp2pGraphSyncNetwork) handleNewStream(s network.Stream) {
 		received, err := gsnet.messageHandlerSelector.Select(s.Protocol()).FromMsgReader(s.Conn().RemotePeer(), reader)
 
 		if err != nil {
+			// The handler refused an over-rate message during decode, before it
+			// retained anything for it. Drop the message, not the stream.
+			if errors.Is(err, gsmsg.ErrOverRate) {
+				_ = s.SetReadDeadline(time.Time{})
+				// Warn, not Debug: the limit firing is security relevant. Throttled
+				// per peer, so the refusal path cannot become a log flood.
+				if gsnet.requestLimiter.warnDrop(p) {
+					log.Warnf("graphsync net dropped over-rate message from %s, limit is %d requests per peer per second",
+						p, gsnet.maxRequestsPerPeerSecond)
+				}
+				continue
+			}
 			if err != io.EOF {
 				_ = s.Reset()
 				go gsnet.receiver.ReceiveError(p, err)
@@ -276,24 +308,6 @@ func (gsnet *libp2pGraphSyncNetwork) handleNewStream(s network.Stream) {
 			return
 		}
 		_ = s.SetReadDeadline(time.Time{})
-
-		if gsnet.maxRequestsPerPeerSecond > 0 {
-			// Floor of one, so a message of only responses and blocks is not free.
-			cost := received.RequestCount()
-			if cost < 1 {
-				cost = 1
-			}
-			// Drop the message, not the stream.
-			if !gsnet.requestLimiter.allow(p, cost) {
-				// Warn, not Debug: the limit firing is security relevant. Throttled
-				// per peer, so the refusal path cannot become a log flood.
-				if gsnet.requestLimiter.warnDrop(p) {
-					log.Warnf("graphsync net dropped over-rate message from %s carrying %d requests, limit is %d per peer per second",
-						p, cost, gsnet.maxRequestsPerPeerSecond)
-				}
-				continue
-			}
-		}
 
 		ctx := context.Background()
 		log.Debugf("graphsync net handleNewStream from %s", s.Conn().RemotePeer())

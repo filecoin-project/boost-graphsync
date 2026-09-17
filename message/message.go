@@ -1,6 +1,7 @@
 package message
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -23,6 +24,18 @@ type MessageHandler interface {
 	FromMsgReader(peer.ID, msgio.Reader) (GraphSyncMessage, error)
 	ToNet(peer.ID, GraphSyncMessage, io.Writer) error
 }
+
+// AdmitFunc reports whether a message carrying requestCount requests may be
+// accepted from p. A handler consults it as soon as the count is known and
+// before it retains anything for the message, so that a refused message costs
+// nothing beyond the decode that produced the count. A nil AdmitFunc admits
+// everything.
+type AdmitFunc func(p peer.ID, requestCount int) bool
+
+// ErrOverRate is returned by a MessageHandler whose AdmitFunc refused the
+// message. Nothing has been retained for it and the stream it arrived on is
+// still usable: callers should discard the message and read the next one.
+var ErrOverRate = errors.New("message refused: sender is over its request rate")
 
 // MessagePartWithExtensions is an interface for accessing metadata on both
 // requests and responses, which have a consistent extension accessor mechanism
@@ -214,12 +227,6 @@ func newResponse(requestID graphsync.RequestID,
 // responses, or blocks
 func (gsm GraphSyncMessage) Empty() bool {
 	return len(gsm.blocks) == 0 && len(gsm.requests) == 0 && len(gsm.responses) == 0
-}
-
-// RequestCount returns the number of requests in this message, without
-// allocating a slice the way Requests() does.
-func (gsm GraphSyncMessage) RequestCount() int {
-	return len(gsm.requests)
 }
 
 // Requests provides a copy of the requests in this message

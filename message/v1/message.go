@@ -43,13 +43,25 @@ type MessageHandler struct {
 	fromV1Map map[v1RequestKey]graphsync.RequestID
 	toV1Map   map[graphsync.RequestID]int32
 	nextIntId int32
+	// consulted before an incoming message is allowed to mint request ID
+	// mappings. nil admits everything.
+	admit message.AdmitFunc
 }
 
 // NewMessageHandler instantiates a new MessageHandler instance
 func NewMessageHandler() *MessageHandler {
+	return NewMessageHandlerWithAdmission(nil)
+}
+
+// NewMessageHandlerWithAdmission instantiates a MessageHandler that consults
+// admit before it mints request ID mappings for an incoming message. Those
+// mappings are the state this handler keeps across messages and they live as
+// long as the request does, so a message refused here leaves nothing behind.
+func NewMessageHandlerWithAdmission(admit message.AdmitFunc) *MessageHandler {
 	return &MessageHandler{
 		fromV1Map: make(map[v1RequestKey]graphsync.RequestID),
 		toV1Map:   make(map[graphsync.RequestID]int32),
+		admit:     admit,
 	}
 }
 
@@ -92,8 +104,28 @@ func (mh *MessageHandler) ToNet(p peer.ID, gsm message.GraphSyncMessage, w io.Wr
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(out)
-	return err
+	if _, err = w.Write(out); err != nil {
+		return err
+	}
+	mh.releaseTerminated(p, gsm)
+	return nil
+}
+
+// releaseTerminated discards the mappings of the requests this message has just
+// answered for the last time. Done once the message is on the wire rather than
+// while encoding it, so that a message which never gets sent does not drop
+// state the peer still refers to, and so ToProto stays a pure encoder.
+func (mh *MessageHandler) releaseTerminated(p peer.ID, gsm message.GraphSyncMessage) {
+	mh.mapLock.Lock()
+	defer mh.mapLock.Unlock()
+	for _, response := range gsm.Responses() {
+		if !response.Status().IsTerminal() {
+			continue
+		}
+		if iid, ok := mh.toV1Map[response.RequestID()]; ok {
+			forget(p, mh.fromV1Map, mh.toV1Map, response.RequestID(), iid)
+		}
+	}
 }
 
 // toProto converts a GraphSyncMessage to its pb.Message equivalent
@@ -165,6 +197,13 @@ func (mh *MessageHandler) ToProto(p peer.ID, gsm message.GraphSyncMessage) (*pb.
 // Mapping from a pb.Message object to a GraphSyncMessage object, including
 // RequestID (int / uuid) mapping.
 func (mh *MessageHandler) fromProto(p peer.ID, pbm *pb.Message) (message.GraphSyncMessage, error) {
+	// Ahead of the lock, and ahead of the loop below that mints a mapping for
+	// every unseen integer ID: the request count is already known from the
+	// decoded protobuf, so a refused message never reaches fromV1Map/toV1Map.
+	if mh.admit != nil && !mh.admit(p, len(pbm.GetRequests())) {
+		return message.GraphSyncMessage{}, message.ErrOverRate
+	}
+
 	mh.mapLock.Lock()
 	defer mh.mapLock.Unlock()
 
@@ -182,6 +221,11 @@ func (mh *MessageHandler) fromProto(p peer.ID, pbm *pb.Message) (message.GraphSy
 
 		if req.Cancel {
 			requests[id] = message.NewCancelRequest(id)
+			// A cancelled request is torn down without a terminal response, so
+			// this is the only chance to reclaim its mapping. Anything the peer
+			// sends afterwards under the same integer is a new request and gets
+			// a new mapping.
+			forget(p, mh.fromV1Map, mh.toV1Map, id, req.Id)
 			continue
 		}
 
@@ -225,7 +269,13 @@ func (mh *MessageHandler) fromProto(p peer.ID, pbm *pb.Message) (message.GraphSy
 		if err != nil {
 			return message.GraphSyncMessage{}, err
 		}
-		responses[id] = message.NewResponse(id, graphsync.ResponseStatusCode(res.Status), metadata, exts...)
+		status := graphsync.ResponseStatusCode(res.Status)
+		responses[id] = message.NewResponse(id, status, metadata, exts...)
+		if status.IsTerminal() {
+			// Our own request is over, so the mapping we minted when we sent it
+			// has no further use.
+			forget(p, mh.fromV1Map, mh.toV1Map, id, res.Id)
+		}
 	}
 
 	blks := make(map[cid.Cid]blocks.Block, len(pbm.GetData()))
@@ -330,6 +380,18 @@ func bytesIdToInt(p peer.ID, fromV1Map map[v1RequestKey]graphsync.RequestID, toV
 		fromV1Map[v1RequestKey{p, iid}] = rid
 	}
 	return iid, nil
+}
+
+// forget discards the mapping for a request that has reached the end of its
+// life. Without it the two maps only ever grow: every integer ID a peer has
+// ever used keeps an entry for as long as the handler lives, so the mapping
+// state of a long-running node is bounded by total requests served rather than
+// by requests in flight.
+//
+// Callers must hold mapLock.
+func forget(p peer.ID, fromV1Map map[v1RequestKey]graphsync.RequestID, toV1Map map[graphsync.RequestID]int32, rid graphsync.RequestID, iid int32) {
+	delete(fromV1Map, v1RequestKey{p, iid})
+	delete(toV1Map, rid)
 }
 
 // Maps an integer form of a RequestID as used by a v1 peer to a native (uuid) form.
