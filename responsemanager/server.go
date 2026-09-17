@@ -322,8 +322,11 @@ func (rm *ResponseManager) finishTask(task *peertask.Task, p peer.ID, err error)
 	}
 
 	if ipldutil.IsContextCancelErr(err) {
-		rm.cancelledListeners.NotifyCancelledListeners(p, response.request)
+		// Unprotect before notifying, as abortRequest does: the listeners are
+		// published synchronously, so a listener that observes the cancellation
+		// would otherwise race the connection being unprotected.
 		rm.terminateRequest(requestID)
+		rm.cancelledListeners.NotifyCancelledListeners(p, response.request)
 		return
 	}
 
