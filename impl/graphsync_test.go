@@ -1912,6 +1912,12 @@ type gsTestData struct {
 func drain(gs graphsync.GraphExchange) {
 	gs.(*GraphSync).requestQueue.(*taskqueue.WorkerTaskQueue).WaitForNoActiveTasks()
 	gs.(*GraphSync).responseQueue.(*taskqueue.WorkerTaskQueue).WaitForNoActiveTasks()
+	// WaitForNoActiveTasks returns as soon as finishTask has marked the task
+	// done, which it does before terminating the request and ending its span.
+	// Both managers handle their messages on a single goroutine in order, so a
+	// round trip through them guarantees an in-flight finishTask has run to
+	// completion, and its spans have been ended, before traces are collected.
+	gs.(*GraphSync).PeerState("")
 }
 
 func assertAllResponsesReceivedFunction(gs graphsync.GraphExchange) func(context.Context, *testing.T) int {
