@@ -24,11 +24,23 @@ import (
 // MessageHandler is used to hold per-peer state for each connection. There is
 // no state to hold for the v2 protocol, so this exists to provide a consistent
 // interface between the protocol versions.
-type MessageHandler struct{}
+type MessageHandler struct {
+	// consulted before an incoming message is returned. v2 keeps no state of
+	// its own, but charging here rather than at the network layer keeps a
+	// single admission point across both protocol versions, so that a v1
+	// message is not charged twice. nil admits everything.
+	admit message.AdmitFunc
+}
 
 // NewMessageHandler creates a new MessageHandler
 func NewMessageHandler() *MessageHandler {
-	return &MessageHandler{}
+	return NewMessageHandlerWithAdmission(nil)
+}
+
+// NewMessageHandlerWithAdmission creates a MessageHandler that consults admit
+// for each incoming message.
+func NewMessageHandlerWithAdmission(admit message.AdmitFunc) *MessageHandler {
+	return &MessageHandler{admit: admit}
 }
 
 // FromNet can read a network stream to deserialized a GraphSyncMessage
@@ -38,7 +50,7 @@ func (mh *MessageHandler) FromNet(p peer.ID, r io.Reader) (message.GraphSyncMess
 }
 
 // FromMsgReader can deserialize a DAG-CBOR message into a GraphySyncMessage
-func (mh *MessageHandler) FromMsgReader(_ peer.ID, r msgio.Reader) (message.GraphSyncMessage, error) {
+func (mh *MessageHandler) FromMsgReader(p peer.ID, r msgio.Reader) (message.GraphSyncMessage, error) {
 	msg, err := r.ReadMsg()
 	if err != nil {
 		return message.GraphSyncMessage{}, err
@@ -52,7 +64,20 @@ func (mh *MessageHandler) FromMsgReader(_ peer.ID, r msgio.Reader) (message.Grap
 	if err != nil {
 		return message.GraphSyncMessage{}, err
 	}
-	return mh.fromIPLD(ipldGSM.(*ipldbind.GraphSyncMessageRoot))
+	root := ipldGSM.(*ipldbind.GraphSyncMessageRoot)
+	if mh.admit != nil && !mh.admit(p, requestCount(root)) {
+		return message.GraphSyncMessage{}, message.ErrOverRate
+	}
+	return mh.fromIPLD(root)
+}
+
+// requestCount reports how many requests a decoded message carries, without
+// building the GraphSyncMessage that fromIPLD would produce.
+func requestCount(root *ipldbind.GraphSyncMessageRoot) int {
+	if root == nil || root.Gs2 == nil || root.Gs2.Requests == nil {
+		return 0
+	}
+	return len(*root.Gs2.Requests)
 }
 
 // ToProto converts a GraphSyncMessage to its ipldbind.GraphSyncMessageRoot equivalent
