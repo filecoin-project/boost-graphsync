@@ -21,8 +21,17 @@ func EncodeCidSet(cids *cid.Set) datamodel.Node {
 	return list
 }
 
+// ErrNilNode is returned when decoding a null extension value
+var ErrNilNode = errors.New("cannot decode cid set from a null node")
+
 // DecodeCidSet decode a cid set from data for the do-no-send-cids extension
 func DecodeCidSet(data datamodel.Node) (*cid.Set, error) {
+	// The graphsync schema declares extension values as nullable Any, so a
+	// present-but-null extension arrives here as a nil node. Calling a method
+	// on it would panic; report it as a decode error instead.
+	if data == nil {
+		return nil, ErrNilNode
+	}
 	if data.Kind() != datamodel.Kind_List {
 		return nil, errors.New("did not receive a list of CIDs")
 	}

@@ -25,3 +25,10 @@ func TestDecodeEncodeCidSet(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestDecodeCidSetNullNode(t *testing.T) {
+	// A present-but-null extension value must decode to an error, not panic.
+	decodedCidSet, err := DecodeCidSet(nil)
+	require.ErrorIs(t, err, ErrNilNode)
+	require.Nil(t, decodedCidSet)
+}
